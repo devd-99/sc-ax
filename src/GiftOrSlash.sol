@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-// import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-
 contract GiftOrSlash {
-    using ECDSA for bytes32;
-
     address public owner;
     mapping(address => bool) public hasParticipated;
     
@@ -25,28 +19,19 @@ contract GiftOrSlash {
         _;
     }
 
-    function executeAction(address user, bool isGift, bytes memory signature) external payable {
-        require(!hasParticipated[user], "User has already participated");
-        
-        bytes32 messageHash = keccak256(abi.encodePacked("I agree to participate in the slash or gift process"));
-        address recovered = ECDSA.recover(
-        MessageHashUtils.toEthSignedMessageHash(messageHash),
-        signature
-        );
-        // address signer = ECDSA.recover(recovered, signature);
-        
-        require(recovered == user, "Invalid signature");
+    function executeAction(bool isGift) external payable {
+        // require(!hasParticipated[msg.sender], "User has already participated");
 
-        hasParticipated[user] = true;
+        hasParticipated[msg.sender] = true;
 
         if (isGift) {
             require(address(this).balance >= GIFT_AMOUNT, "Contract doesn't have enough balance for gift");
-            (bool success, ) = payable(user).call{value: GIFT_AMOUNT}("");
+            (bool success, ) = payable(msg.sender).call{value: GIFT_AMOUNT}("");
             require(success, "Gift transfer failed");
-            emit ActionExecuted(user, true, GIFT_AMOUNT);
+            emit ActionExecuted(msg.sender, true, GIFT_AMOUNT);
         } else {
             require(msg.value == SLASH_AMOUNT, "Incorrect slash amount sent");
-            emit ActionExecuted(user, false, SLASH_AMOUNT);
+            emit ActionExecuted(msg.sender, false, SLASH_AMOUNT);
         }
     }
 
@@ -59,3 +44,9 @@ contract GiftOrSlash {
 
     receive() external payable {}
 }
+
+
+// 4cb67d93b67f48dc8afa0937a5ba0325
+// forge create --rpc-url https://sepolia.infura.io/v3/4cb67d93b67f48dc8afa0937a5ba0325 --private-key 93fd699e667e29e9d6bf570ec85657c015acf75b4ea6ea905f91774b4d9fd25f  src/GiftOrSlash.sol:GiftOrSlash
+
+// cast send --rpc-url https://sepolia.infura.io/v3/4cb67d93b67f48dc8afa0937a5ba0325 --private-key 93fd699e667e29e9d6bf570ec85657c015acf75b4ea6ea905f91774b4d9fd25f 0xA6FEdBCD721836d273Ea3B01D934325BFc6BfFEb --function executeAction --params true
